@@ -10,6 +10,9 @@ class process:
         attribute = string.split(" ")
         return cls(attribute[0],int(attribute[1]),int(attribute[2]),int(attribute[3]))
 
+def get_remain_time(process):
+    return process[1]
+
 def read_file():
     '''
         return number_of_prcesses, quantum_time, list_of_processes
@@ -30,19 +33,18 @@ def read_file():
         process_list.append(process.from_string(i))
     return num_of_process, quantum_time, process_list
 
+#==============================FCDS=======================================
 def FCFS(process_list: list[process]):
     num_of_process = len(process_list)
     finish_process = []
     scheduling_chart = ""
     process_queue = []
-    file_out = open("FCFS.txt", "w")
-    file_out.write("Scheduling chart: \n")
     time = 0
-    max_time = 0
+    total_TT = 0
+    total_WT = 0
     last_in = process_list[0].arrival_time
     first_in = process_list[0].arrival_time
     for i in process_list:
-        max_time += i.cpu_burst
         if last_in <= i.arrival_time:
             last_in = i.arrival_time
         
@@ -51,7 +53,7 @@ def FCFS(process_list: list[process]):
 
     if first_in != 0:
         scheduling_chart += "0 ~x~ "
-        scheduling_chart += str(first_in)
+        scheduling_chart += (str(first_in)+ " ")
         time = first_in
     else:
         scheduling_chart += "0 "
@@ -69,24 +71,158 @@ def FCFS(process_list: list[process]):
         finish_process.append((running_process, time))
     
     scheduling_chart += "\n"
+    file_out = open("FCFS.txt", "w")
+    file_out.write("Scheduling chart: \n")
     file_out.write(scheduling_chart)
-    total_TT = 0
-    total_WT = 0
     for process in finish_process:
         file_out.write(process[0].name + ": ")
         file_out.write("TT =" + str(process[1] - process[0].arrival_time) +  " ")
         total_TT += process[1] - process[0].arrival_time
-        file_out.write("WT =" + str(process[1] - process[0].cpu_burst) +  "\n")
-        total_WT += process[1] - process[0].cpu_burst
+        file_out.write("WT =" + str(process[1] - process[0].arrival_time - process[0].cpu_burst) +  "\n")
+        total_WT += process[1] - process[0].arrival_time - process[0].cpu_burst
 
     file_out.write("Average: TT = " + str(round((total_TT / num_of_process),2)) + " WT = " + str(round((total_WT / num_of_process),2)))
 
 
     file_out.close()
     
+#==============================RR=======================================
+def RR(process_list: list[process], quantum_time):
+    num_of_process = len(process_list)
+    added_process = []
+    finish_process = []
+    scheduling_chart = ""
+    time = 0
+    process_queue = []
+    first_in = time
+    total_TT = 0
+    total_WT = 0
 
-num_of_pro, quantum_time, process_list = read_file()
-print(num_of_pro)
-print(quantum_time)
-print(process_list)
+
+    while(len(process_queue) == 0):
+        for i in process_list:
+            if first_in == i.arrival_time:
+                process_queue.append([i, i.cpu_burst])
+                added_process.append(i)
+        if len(process_queue) == 0:
+            first_in +=1
+
+    if first_in != 0:
+        scheduling_chart += "0 ~x~ "
+        scheduling_chart += (str(first_in) + " ")
+        time = first_in
+    else:
+        scheduling_chart += "0 "
+
+    while(len(process_queue) != 0):
+        if len(process_list) != len(added_process):
+            for temp_time in range(time, time+ quantum_time + 1):
+                for i in process_list:
+                    if (i.arrival_time == temp_time) and (i not in added_process):
+                        added_process.append(i)
+                        process_queue.append([i, i.cpu_burst])
+
+        running_process = process_queue.pop(0)
+        running_process_remain = running_process[1] - quantum_time
+        
+
+        if running_process_remain > 0:
+            time += quantum_time
+            scheduling_chart = scheduling_chart + "~" + running_process[0].name + "~ "
+            scheduling_chart = scheduling_chart + str(time) + " "
+            running_process[1] -= quantum_time
+            process_queue.append(running_process)
+        elif running_process_remain == 0:
+            time += quantum_time
+            scheduling_chart = scheduling_chart + "~" + running_process[0].name + "~ "
+            scheduling_chart = scheduling_chart + str(time) + " "
+            finish_process.append((running_process[0],time))
+        else:
+            time += running_process[1]
+            scheduling_chart = scheduling_chart + "~" + running_process[0].name + "~ "
+            scheduling_chart = scheduling_chart + str(time) + " "
+            finish_process.append((running_process[0],time))
+    
+    scheduling_chart += "\n"
+    file_out = open("RR.txt", "w")
+    file_out.write("Scheduling chart: \n")
+    file_out.write(scheduling_chart)
+    for process in finish_process:
+        file_out.write(process[0].name + ": ")
+        file_out.write("TT =" + str(process[1] - process[0].arrival_time) +  " ")
+        total_TT += process[1] - process[0].arrival_time
+        file_out.write("WT =" + str(process[1] - process[0].arrival_time - process[0].cpu_burst) +  "\n")
+        total_WT += process[1] - process[0].arrival_time - process[0].cpu_burst
+
+    file_out.write("Average: TT = " + str(round((total_TT / num_of_process),2)) + " WT = " + str(round((total_WT / num_of_process),2)))
+
+
+    file_out.close()         
+
+#==============================SRTN=======================================
+def SRTN(process_list: list[process]):
+    num_of_process = len(process_list)
+    added_process = []
+    finish_process = []
+    scheduling_chart = ""
+    time = 0
+    process_queue = []
+    first_in = time
+    total_TT = 0
+    total_WT = 0
+    new_process = False
+
+    while(len(process_queue) == 0):
+        for i in process_list:
+            if first_in == i.arrival_time:
+                process_queue.append([i, i.cpu_burst])
+                added_process.append(i)
+        if len(process_queue) == 0:
+            first_in +=1
+
+    if first_in != 0:
+        scheduling_chart += "0 ~x~ "
+        scheduling_chart += (str(first_in) + " ")
+        time = first_in
+    else:
+        scheduling_chart += "0 "
+
+    while(len(process_queue) != 0):
+        process_queue.sort(key=get_remain_time)
+        running_process = process_queue.pop(0)
+
+        if len(process_list) != len(added_process):
+            for temp_time in range(time, time+ running_process[1] + 1):
+                if new_process == True:
+                    time = temp_time -1
+                    break
+                for i in process_list:
+                    if (i.arrival_time == temp_time) and (i not in added_process):
+                        added_process.append(i)
+                        process_queue.append([i, i.cpu_burst])
+                        new_process = True
+                        process_queue.append([running_process[0],running_process[1] - (temp_time - time) ])
+                    if new_process == True:
+                        break
+                
+        if new_process == True:
+            new_process = False
+            scheduling_chart = scheduling_chart + "~" + running_process[0].name + "~ "
+            scheduling_chart = scheduling_chart + str(time) + " "
+            finish_process.append((running_process[0], time))
+        else:
+            scheduling_chart = scheduling_chart + "~" + running_process[0].name + "~ "
+            time += running_process[1]
+            scheduling_chart = scheduling_chart + str(time) + " "
+            finish_process.append((running_process[0], time))
+    
+    scheduling_chart += "\n"
+
+    print(scheduling_chart)
+    
+
+num_of_process, quantum_time, process_list = read_file()
+
 FCFS(process_list)
+RR(process_list,quantum_time)
+SRTN(process_list)
